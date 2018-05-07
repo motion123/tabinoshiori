@@ -25,9 +25,18 @@ var BookmarkSchema = new Schema({
             required: [true, 'ユーザーIDが必要です'],
             ref: 'User'
         },
-        other_user:[{
+        otherUser:[{
             type: Schema.Types.ObjectId,
             ref: 'User'
+        }],
+        trip_info:[{
+            index:{
+                type: Number
+            },
+            _id:{
+                type: Schema.Types.ObjectId,
+                ref: 'Info'
+            }
         }],
         thumbnail: {
             type: mongoose.SchemaTypes.Url

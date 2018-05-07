@@ -180,5 +180,52 @@ router.get('/:id', function (req,res) {
     })
 });
 
+/* GET home page. */
+router.post('/login', function(req, res,next) {
+    User.findOne({
+        email: req.body.email
+    }, function(err, user) {
+        if (err)
+            return res.status(403).send({success: false, msg: 'User Not Found'});
+        if (!user) {
+            res.send({
+                success: false,
+                error: {
+                    errors: {
+                        email: {
+                            message: 'メールアドレスが間違っています'
+                        }
+                    }
+                }
+            });
+        } else {
+            req.userinfo = user;
+            next();
+        }
+    });
+});
+
+router.post('/login', function(req, res) {
+    req.userinfo.comparePassword(req.body.password, function (err, isMatch) {
+        if (isMatch && !err) {
+            // if user is found and password is right create a token
+            var token = jwt.encode(req.userinfo, config.secret);
+            // return the information including token as JSON
+            res.json({success: true, token: 'JWT ' + token});
+        } else {
+            res.send({
+                success: false,
+                error: {
+                    errors: {
+                        password: {
+                            message: 'パスワードが間違っています'
+                        }
+                    }
+                }
+            });
+        }
+    });
+});
+
 
 module.exports = router;

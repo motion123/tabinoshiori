@@ -10,14 +10,13 @@ var User = require('../models/user');
 var passport = require('passport');
 require('../config/passport')(passport);
 var bcrypt = require('bcrypt');
-var Site = require('../models/site_info');
+var Site = require('../models/site');
+var Info = require('../models/Info');
 var Bookmark = require('../models/bookmark');
 var getToken = require('./cont/token');
 var paginate = require('express-paginate');
-var urlParser = require('../url/urlparse');
-var thumbnailCreator = require('../thumbnail/selector');
 
-
+//auth処理
 router.use(passport.authenticate('jwt', { session: false}), function(req, res, next) {
     var token = getToken(req.headers);
     if(token){
@@ -38,11 +37,13 @@ router.use(passport.authenticate('jwt', { session: false}), function(req, res, n
     }
 });
 
+//新規栞作成
 router.post('/new', function (req,res,next) {
     var newBookmark = new Bookmark();
     newBookmark.title = req.body.title;
     newBookmark.description = req.body.description;
     newBookmark.user = req.userinfo._id;
+    newBookmark.otherUser.push(req.userinfo._id);
 
     newBookmark.save(function (err,success) {
         if(err) {
@@ -57,9 +58,25 @@ router.post('/new', function (req,res,next) {
     });
 });
 
+
+// 個別栞情報GET
 router.get('/:id', function (req,res) {
     Bookmark.findOne({_id: req.params.id})
-        .populate({path: 'user', select: '_id name img'})
+        .populate({
+            path: 'user otherUser trip_info',
+            select: '_id name img',
+            // しおり個別データ展開
+            populate: {
+                path:'_id',
+                model:'Info'
+                // // 観光地情報展開
+                // populate:{
+                //     path:"location",
+                //     model:"Site",
+                //     select:"site_name location thumbnail"
+                // }
+            }
+        })
         .exec(function (err, success){
             if(err){
                 res.status(404).send({success:false, msg: err})
@@ -74,8 +91,72 @@ router.get('/:id', function (req,res) {
         })
 });
 
+router.post('/edit/trip',function (req,res,next) {
+    var newSite = new Site();
+    newSite.site_name = req.body.site_name;
+    newSite.location = req.body.location;
 
-router.delete('/:id/delete',function(req,res,next) {
+    newSite.save(function (err,success) {
+        if(err) {
+            res.status(400).send({success: false, validError: true,error:err});
+        } else {
+            req.site = success;
+            next();
+        }
+    });
+
+});
+
+router.post('/edit/trip',function (req,res) {
+    var newInfo = new Info();
+    newInfo.location = req.site._id;
+    newInfo.user = req.userinfo._id;
+    newInfo.description = req.body.description;
+    newInfo.save(function (err,success) {
+        if(err) {
+            res.status(400).send({success: false, validError: true,error:err});
+        } else {
+            res.json({
+                success: true,
+                info: success
+            });
+
+        }
+    });
+});
+
+router.post('/edit/position',function (req,res,next) {
+    Bookmark.findOne(
+        {_id:req.body._id},
+        function (err,success) {
+            if(err) {
+                res.status(403).json({success:false, error:err});
+            }else if(success){
+                req.bookmark = success;
+                next();
+            }
+    })
+});
+
+router.post('/edit/position',function (req,res,next) {
+    Bookmark.findOneAndUpdate({_id: req.bookmark._id},{
+        trip_info: req.body.info
+    },{ runValidators: true, context: 'query'},function (err, success) {
+        if(err) {
+            res.status(403).json({success:false,error:err});
+        } else {
+            res.json(
+                {
+                    success:true,
+                    bookmark:success
+            });
+        }
+    })
+});
+
+
+// 栞削除
+router.delete('/:id',function(req,res,next) {
     Bookmark.findOne({
         user: req.userinfo._id,
         _id: req.params.id
@@ -92,9 +173,9 @@ router.delete('/:id/delete',function(req,res,next) {
 
 });
 
-router.delete('/:id/delete',function(req,res) {
+router.delete('/:id',function(req,res) {
     Bookmark.remove({
-        user: req.userinfo._id,
+        user: req.uerinfo._id,
         _id: req.params.id
     },function (err, success) {
         if (err)

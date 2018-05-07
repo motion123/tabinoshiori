@@ -60,4 +60,4 @@ SiteInfoSchema.plugin(uniqueValidator);
 
 SiteInfoSchema.plugin(mongoosePaginate,{message: '登録済みの場所です。'});
 
-module.exports = mongoose.model('Bookmark', SiteInfoSchema);
+module.exports = mongoose.model('Site', SiteInfoSchema);

@@ -9,11 +9,16 @@ var logger = require('morgan');
 
 var mongoose = require('mongoose');
 mongoose.Promise = global.Promise;
-mongoose.connect('mongodb://localhost/jsonAPI', { config: { autoIndex: true } });
+mongoose.connect('mongodb://localhost/shiori', { config: { autoIndex: true } });
 
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var bookmarkRouter = require('./routes/bookmark');
+var siteRouter = require('./routes/site');
+
+var passport = require('passport');
+
 
 var app = express();
 
@@ -56,6 +61,8 @@ app.use(allowCrossDomain);
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/bookmark', bookmarkRouter);
+app.use('/site', siteRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
