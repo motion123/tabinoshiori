@@ -64,18 +64,8 @@ router.get('/:id', function (req,res) {
     Bookmark.findOne({_id: req.params.id})
         .populate({
             path: 'user otherUser trip_info',
-            select: '_id name img',
-            // しおり個別データ展開
-            populate: {
-                path:'_id',
-                model:'Info'
-                // // 観光地情報展開
-                // populate:{
-                //     path:"location",
-                //     model:"Site",
-                //     select:"site_name location thumbnail"
-                // }
-            }
+            select: '_id name img'
+            // 個別
         })
         .exec(function (err, success){
             if(err){
