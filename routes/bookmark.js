@@ -22,7 +22,7 @@ router.use(passport.authenticate('jwt', { session: false}), function(req, res, n
     if(token){
         var decoded = jwt.decode(token, config.secret);
         User.findOne({
-            user_email: decoded.user_email
+            email: decoded.email
         },function (err, user) {
             if(err) throw err;
             if(!user) {
@@ -115,6 +115,29 @@ router.get('/:id', function (req,res) {
 });
 
 router.post('/edit/trip',function (req,res,next) {
+   Bookmark.findOne({
+       _id:req.body._id
+   },function (err,success) {
+       if(err){
+           res.status(400).send({success: false,error:err});
+       }else{
+           var result = success.otherUser.some(function (val) {
+               var t;
+               val != null ?  t=val :  t=1;
+               console.log(t.toString());
+               console.log(req.userinfo._id.toString());
+               return t.toString() === req.userinfo._id.toString();
+           });
+           if(result){
+               next();
+           }else{
+               res.status(403).send({success:false,message:"権限がありません。"})
+           }
+       }
+   })
+});
+
+router.post('/edit/trip',function (req,res,next) {
     var newSite = new Site();
     newSite.site_name = req.body.site_name;
     newSite.location = req.body.location;
@@ -193,6 +216,81 @@ router.post('/edit/position',function (req,res,next) {
     })
 });
 
+
+router.post('/permission',function (req,res,next) {
+    User.find({
+        name:req.body.name
+    },function (err,success) {
+        if(err){
+            res.status(403).json({success:false,message:"ユーザーがいません",error:err});
+        }else{
+            req.user = success[0]._id;
+            next();
+        }
+    })
+});
+
+router.post('/permission',function (req,res,next) {
+    Bookmark.findOne({
+        _id:req.body._id
+    },function (err,success) {
+        if(err){
+            res.status(403).json({success:false,message:"ブックマークがありません",error:err});
+        }else{
+            if(req.userinfo._id.toString() === success.user.toString()){
+                next();
+            } else{
+                res.status(401).json({success:false,message:"権限がありませんｎ",error:err});
+            }
+        }
+    })
+});
+
+router.post('/permission',function (req,res,next) {
+    Bookmark.update({
+        _id:req.body._id
+    },{ $push:{otherUser: req.user}},function (err,success) {
+        if(err){
+            res.status(403).json({success:false,message:"権限付与に失敗しました。",error:err});
+        }else{
+            res.json({
+                success:true,
+                other_user: req.user
+            })
+        }
+    })
+});
+
+router.post('/permission/del',function (req,res,next) {
+    Bookmark.findOne({
+        _id:req.body._id
+    },function (err,success) {
+        if(err){
+            res.status(403).json({success:false,message:"ブックマークがありません",error:err});
+        }else{
+            if(req.userinfo._id.str === success.user.str){
+                next();
+            } else{
+                res.status(401).json({success:false,message:"権限がありませんｎ",error:err});
+            }
+        }
+    })
+});
+
+router.post('/permission/del',function (req,res) {
+   Bookmark.update({
+       _id:req.body._id
+   },{$pull:{otherUser: req.body.other_user_id}},
+   function (err,success) {
+       if(err){
+           res.status(403).json({success:false,message:"削除に失敗しました。",error:err});
+       } else{
+           res.json({
+               success:true
+           })
+       }
+   })
+});
 
 // 栞削除
 router.delete('/:id',function(req,res,next) {
