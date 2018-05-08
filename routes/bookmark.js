@@ -60,25 +60,58 @@ router.post('/new', function (req,res,next) {
 
 
 // 個別栞情報GET
-router.get('/:id', function (req,res) {
+router.get('/:id', function (req,res,next) {
     Bookmark.findOne({_id: req.params.id})
         .populate({
-            path: 'user otherUser trip_info',
+            path: 'user otherUser',
             select: '_id name img'
-            // 個別
         })
         .exec(function (err, success){
+
+            var options = {
+                path:'trip_info',
+                model:'Info',
+                select:'_id user description location'
+            };
+
             if(err){
                 res.status(404).send({success:false, msg: err})
             }　else if(!success) {
                 return res.status(404).send({success: false, msg: 'Bookmark not found'});
             } else {
-                res.json({
-                    success: true,
-                    data:success
+                Bookmark.populate(success,options, function (err, bookmark) {
+                    if(!err) {
+                        req.bookmark = bookmark;
+                        next();
+                    }else{
+                        res.json({
+                            success:true,
+                            bookmark:success
+                        })
+                    }
                 });
             }
         })
+});
+
+router.get('/:id', function (req,res) {
+
+    var options = {
+        path:'trip_info.location',
+        model:'Site',
+        select:'_id site_name location favorite'
+    };
+
+    Bookmark.populate(req.bookmark,options,function (err,success) {
+       if(err) {
+                res.status(400).send({success: false, error:err});
+       } else {
+           res.json({
+                success:true,
+                bookmark:success
+            })
+        }
+    })
 });
 
 router.post('/edit/trip',function (req,res,next) {
@@ -97,7 +130,7 @@ router.post('/edit/trip',function (req,res,next) {
 
 });
 
-router.post('/edit/trip',function (req,res) {
+router.post('/edit/trip',function (req,res,next) {
     var newInfo = new Info();
     newInfo.location = req.site._id;
     newInfo.user = req.userinfo._id;
@@ -106,14 +139,30 @@ router.post('/edit/trip',function (req,res) {
         if(err) {
             res.status(400).send({success: false, validError: true,error:err});
         } else {
-            res.json({
-                success: true,
-                info: success
-            });
-
+            req.info = success;
+            next();
         }
     });
 });
+
+
+router.post('/edit/trip',function (req,res,next) {
+    Bookmark.update({_id: req.body._id},{
+        $push:{trip_info:req.info._id }
+    },function (err, success) {
+        if (!success) {
+            res.status(403).json({success: false, error: err});
+        } else {
+            res.json(
+                {
+                    success: true,
+                    info: req.info,
+                    bookmarks: success
+                });
+        }
+    })
+});
+
 
 router.post('/edit/position',function (req,res,next) {
     Bookmark.findOne(

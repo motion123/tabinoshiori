@@ -55,6 +55,7 @@ SiteInfoSchema.statics.increment = function(id, done) {
 
 SiteInfoSchema.index({created_at: -1});
 SiteInfoSchema.index({site_name: 1});
+SiteInfoSchema.index({location:"2d"});
 
 SiteInfoSchema.plugin(uniqueValidator);
 

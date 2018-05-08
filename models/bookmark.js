@@ -30,13 +30,8 @@ var BookmarkSchema = new Schema({
             ref: 'User'
         }],
         trip_info:[{
-            index:{
-                type: Number
-            },
-            _id:{
-                type: Schema.Types.ObjectId,
-                ref: 'Info'
-            }
+            type: Schema.Types.ObjectId,
+            ref: 'Info'
         }],
         thumbnail: {
             type: mongoose.SchemaTypes.Url
