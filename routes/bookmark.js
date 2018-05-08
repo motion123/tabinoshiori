@@ -324,7 +324,7 @@ router.delete('/:id',function(req,res) {
         else if(success)
         res.json({
             success:true,
-            message: "bookmark deleted",
+            message: "bookmark.md deleted",
             bookmark: {
                 title: req.bookmarkinfo.title
             }
