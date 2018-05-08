@@ -124,8 +124,6 @@ router.post('/edit/trip',function (req,res,next) {
            var result = success.otherUser.some(function (val) {
                var t;
                val != null ?  t=val :  t=1;
-               console.log(t.toString());
-               console.log(req.userinfo._id.toString());
                return t.toString() === req.userinfo._id.toString();
            });
            if(result){
@@ -186,32 +184,38 @@ router.post('/edit/trip',function (req,res,next) {
     })
 });
 
-
-router.post('/edit/position',function (req,res,next) {
-    Bookmark.findOne(
-        {_id:req.body._id},
-        function (err,success) {
-            if(err) {
-                res.status(403).json({success:false, error:err});
-            }else if(success){
-                req.bookmark = success;
+router.post('/edit/trip/order',function (req,res,next) {
+    Bookmark.findOne({
+        _id:req.body._id
+    },function (err,success) {
+        if(err){
+            res.status(400).send({success: false,error:err});
+        }else{
+            var result = success.otherUser.some(function (val) {
+                var t;
+                val != null ?  t=val :  t=1;
+                return t.toString() === req.userinfo._id.toString();
+            });
+            if(result){
                 next();
+            }else{
+                res.status(403).send({success:false,message:"権限がありません。"})
             }
+        }
     })
 });
 
-router.post('/edit/position',function (req,res,next) {
-    Bookmark.findOneAndUpdate({_id: req.bookmark._id},{
-        trip_info: req.body.info
-    },{ runValidators: true, context: 'query'},function (err, success) {
-        if(err) {
-            res.status(403).json({success:false,error:err});
+router.post('/edit/trip/order',function (req,res,next) {
+    Bookmark.update({_id: req.body._id},{
+        $set:{trip_info:req.body.trip_info_list }
+    },function (err, success) {
+        if (!success) {
+            res.status(403).json({success: false, error: err});
         } else {
             res.json(
                 {
-                    success:true,
-                    bookmark:success
-            });
+                    success: true
+                });
         }
     })
 });
