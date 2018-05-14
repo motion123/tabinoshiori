@@ -4,6 +4,7 @@
 
 var mongoose = require('mongoose');
 require('mongoose-type-email');
+require('mongoose-type-url');
 var mongoosePaginate = require('mongoose-paginate');
 var bcrypt = require('bcrypt');
 
@@ -22,7 +23,18 @@ var InfoSchema = new Schema({
         description:{
             type: String,
             required: [true, '旅の情報がありません']
-        }
+        },
+        thumbnail:[{
+            small: {
+                type: mongoose.SchemaTypes.Url
+            },
+            medium:{
+                type: mongoose.SchemaTypes.Url
+            },
+            large: {
+                type: mongoose.SchemaTypes.Url
+            }
+        }]
     },
     {
         timestamps:

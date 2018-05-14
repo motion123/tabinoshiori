@@ -71,7 +71,7 @@ router.get('/:id', function (req,res,next) {
             var options = {
                 path:'trip_info',
                 model:'Info',
-                select:'_id user description location'
+                select:'_id user description location thumbnail'
             };
 
             if(err){
@@ -156,6 +156,7 @@ router.post('/trip/new',function (req,res,next) {
     newInfo.location = req.site._id;
     newInfo.user = req.userinfo._id;
     newInfo.description = req.body.description;
+    newInfo.thumbnail = req.body.thumbnail ? req.body.thumbnail : [];
     newInfo.save(function (err,success) {
 
         if(err) {
@@ -271,7 +272,10 @@ router.put('/tripinfo',function (req,res,next) {
         }else {
             Info.update({
                 _id:req.body.info_id
-            },{$set:{description:req.body.description}},function(err,success){
+            },{$set:{
+                    description:req.body.description,
+                    thumbnail: req.body.thumbnail ? req.body.thumbnail : success.thumbnail
+                }},function(err,success){
                 if(err){
                     res.status(400).send({success:false,error:err})
                 }else{
@@ -279,7 +283,8 @@ router.put('/tripinfo',function (req,res,next) {
                         success:true,
                         trip_info:{
                             _id: req.body.info_id,
-                            description:req.body.description
+                            description:req.body.description,
+                            thumbnail:req.body.thumbnail
                         }
                     })
 
@@ -351,14 +356,14 @@ router.delete('/trip/:bookmark_id/:info_id',function (req,res,next) {
     })
 });
 
-router.post('/permission',function (req,res,next) {
-    User.find({
+router.put('/permission',function (req,res,next) {
+    User.findOne({
         name:req.body.name
     },function (err,success) {
         if(!success){
             res.status(403).json({success:false,message:"ユーザーがいません",error:err});
         }else{
-            req.user = success[0]._id;
+            req.user = success;
             next();
         }
     })
@@ -367,9 +372,9 @@ router.post('/permission',function (req,res,next) {
 
 
 
-router.post('/permission',function (req,res,next) {
+router.put('/permission',function (req,res,next) {
     Bookmark.findOne({
-        _id:req.body._id
+        _id:req.body.bookmark_id
     },function (err,success) {
         if(!success){
             res.status(403).json({success:false,message:"ブックマークがありません",error:err});
@@ -383,24 +388,28 @@ router.post('/permission',function (req,res,next) {
     })
 });
 
-router.post('/permission',function (req,res,next) {
+
+router.put('/permission',function (req,res,next) {
     Bookmark.update({
-        _id:req.body._id
-    },{ $push:{otherUser: req.user}},function (err,success) {
+        _id:req.body.bookmark_id
+    },{ $push:{otherUser: req.user._id}},function (err,success) {
         if(err){
             res.status(403).json({success:false,message:"権限付与に失敗しました。",error:err});
         }else{
             res.json({
                 success:true,
-                other_user: req.user
+                other_user: {
+                    name: req.user.name,
+                    _id: req.user._id
+                }
             })
         }
     })
 });
 
-router.post('/permission/del',function (req,res,next) {
+router.delete('/permission/:bookmark_id/:user_id',function (req,res,next) {
     Bookmark.findOne({
-        _id:req.body._id
+        _id:req.params.bookmark_id
     },function (err,success) {
         if(!success){
             res.status(403).json({success:false,message:"ブックマークがありません",error:err});
@@ -414,10 +423,10 @@ router.post('/permission/del',function (req,res,next) {
     })
 });
 
-router.post('/permission/del',function (req,res) {
+router.post('/permission/:bookmark_id/:user_id',function (req,res) {
    Bookmark.update({
-       _id:req.body._id
-   },{$pull:{otherUser: req.body.other_user_id}},
+       _id:req.params.bookmark_id
+   },{$pull:{otherUser: req.params.user_id}},
    function (err,success) {
        if(err){
            res.status(403).json({success:false,message:"削除に失敗しました。",error:err});
