@@ -125,7 +125,7 @@ router.get('/memberinfo', passport.authenticate('jwt', { session: false}), funct
 });
 
 
-router.get('/:id', passport.authenticate('jwt', { session: false}), function(req, res,next) {
+router.get('/personal/:id', passport.authenticate('jwt', { session: false}), function(req, res,next) {
     var token = getToken(req.headers);
     if (token) {
         var decoded = jwt.decode(token, config.secret);
@@ -158,7 +158,7 @@ router.get('/:id', passport.authenticate('jwt', { session: false}), function(req
     }
 });
 
-router.get('/:id', function (req,res) {
+router.get('/personal/:id', function (req,res) {
     User.findOne({
         name : req.params.name
     },function(err,user){
@@ -180,37 +180,38 @@ router.get('/:id', function (req,res) {
     })
 });
 
-/* GET home page. */
-router.post('/login', function(req, res,next) {
-    User.findOne({
-        email: req.body.email
-    }, function(err, user) {
-        if (err)
-            return res.status(403).send({success: false, msg: 'User Not Found'});
-        if (!user) {
-            res.send({
-                success: false,
-                error: {
-                    errors: {
-                        email: {
-                            message: 'メールアドレスが間違っています'
-                        }
-                    }
-                }
-            });
-        } else {
-            req.userinfo = user;
-            next();
-        }
-    });
+router.get('/auth', passport.authenticate('jwt', {session: false}) ,function (req,res) {
+    var token = getToken(req.headers);
+    if(token) {
+        var decoded = jwt.decode(token, config.secret);
+        User.findOne({
+            email: decoded.email,
+            password: decoded.password
+        }, function (err, user) {
+            if(err)
+                return res.status(403).send({success: false, msg: 'User Not Found'});
+            if(!user) {
+                return res.json({
+                    msg: "auth failed",
+                    success: false
+                })
+            } else {
+                return res.json({
+                    msg: "auth success",
+                    success: true
+                })
+            }
+        })
+    }
 });
+
 
 router.post('/login', function(req, res) {
     User.findOne({
         email: req.body.email
     }, function(err, user) {
-        if (err) throw err;
-
+        if (err)
+            return res.status(403).send({success: false, msg: 'User Not Found'});
         if (!user) {
             res.send({
                 success: false,

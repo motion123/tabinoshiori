@@ -47,7 +47,7 @@ router.post('/new', function (req,res,next) {
 
     newBookmark.save(function (err,success) {
         if(err) {
-            res.status(400).send({success: false, validError: true,error:err});
+            res.send({success: false, validError: true,error:err});
         } else {
             res.json({
                 success: true,
@@ -114,7 +114,7 @@ router.get('/:id', function (req,res) {
     })
 });
 
-router.post('/edit/trip',function (req,res,next) {
+router.post('/trip/new',function (req,res,next) {
    Bookmark.findOne({
        _id:req.body._id
    },function (err,success) {
@@ -135,7 +135,7 @@ router.post('/edit/trip',function (req,res,next) {
    })
 });
 
-router.post('/edit/trip',function (req,res,next) {
+router.post('/trip/new',function (req,res,next) {
     var newSite = new Site();
     newSite.site_name = req.body.site_name;
     newSite.location = req.body.location;
@@ -151,12 +151,13 @@ router.post('/edit/trip',function (req,res,next) {
 
 });
 
-router.post('/edit/trip',function (req,res,next) {
+router.post('/trip/new',function (req,res,next) {
     var newInfo = new Info();
     newInfo.location = req.site._id;
     newInfo.user = req.userinfo._id;
     newInfo.description = req.body.description;
     newInfo.save(function (err,success) {
+
         if(err) {
             res.status(400).send({success: false, validError: true,error:err});
         } else {
@@ -167,24 +168,36 @@ router.post('/edit/trip',function (req,res,next) {
 });
 
 
-router.post('/edit/trip',function (req,res,next) {
+
+router.post('/trip/new',function (req,res,next) {
     Bookmark.update({_id: req.body._id},{
         $push:{trip_info:req.info._id }
     },function (err, success) {
+        var options = {
+            path:'location',
+            model:'Site',
+            select:'_id site_name location'
+        };
+
         if (!success) {
             res.status(403).json({success: false, error: err});
         } else {
-            res.json(
-                {
-                    success: true,
-                    info: req.info,
-                    bookmarks: success
-                });
+            Info.populate(req.info,options,function (err,info) {
+              if(!info){
+                  res.status(403).json({success:false,error:err});
+              }else{
+                  res.json(
+                      {
+                          success: true,
+                          info: info
+                      });
+                 }
+            })
         }
     })
 });
 
-router.post('/edit/trip/order',function (req,res,next) {
+router.put('/trip/order',function (req,res,next) {
     Bookmark.findOne({
         _id:req.body._id
     },function (err,success) {
@@ -192,11 +205,11 @@ router.post('/edit/trip/order',function (req,res,next) {
             res.status(400).send({success: false,error:err});
         }else{
             var result = success.otherUser.some(function (val) {
-                var t;
-                val != null ?  t=val :  t=1;
+                var t = val != null ?  val :  1;
                 return t.toString() === req.userinfo._id.toString();
             });
             if(result){
+                req.bookmark = success;
                 next();
             }else{
                 res.status(403).send({success:false,message:"権限がありません。"})
@@ -205,7 +218,15 @@ router.post('/edit/trip/order',function (req,res,next) {
     })
 });
 
-router.post('/edit/trip/order',function (req,res,next) {
+router.put('/trip/order',function (req,res,next) {
+    if(req.body.trip_info_list[0] != null){
+        next();
+    }else{
+        res.status(403).send({success:false,message:"権限がありません。"})
+    }
+});
+
+router.put('/trip/order',function (req,res,next) {
     Bookmark.update({_id: req.body._id},{
         $set:{trip_info:req.body.trip_info_list }
     },function (err, success) {
@@ -221,11 +242,120 @@ router.post('/edit/trip/order',function (req,res,next) {
 });
 
 
+router.put('/tripinfo',function (req,res,next) {
+    Bookmark.findOne({
+        _id:req.body.bookmark_id
+    },function (err,success) {
+        if(!success){
+            res.status(400).send({success: false,error:err});
+        }else{
+            let result = success.otherUser.some(function (val) {
+                let t = val != null ?  val :  1;
+                return t.toString() === req.userinfo._id.toString();
+            });
+            if(result){
+                next();
+            }else{
+                res.status(403).send({success:false,message:"権限がありません。"})
+            }
+        }
+    })
+});
+
+router.put('/tripinfo',function (req,res,next) {
+    Info.findOne({
+        _id:req.body.info_id
+    },function (err,success) {
+        if(!success){
+            res.status(400).send({success:false,error:err});
+        }else {
+            Info.update({
+                _id:req.body.info_id
+            },{$set:{description:req.body.description}},function(err,success){
+                if(err){
+                    res.status(400).send({success:false,error:err})
+                }else{
+                    res.json({
+                        success:true,
+                        trip_info:{
+                            _id: req.body.info_id,
+                            description:req.body.description
+                        }
+                    })
+
+                }
+            })
+        }
+    })
+});
+
+
+
+router.delete('/trip/:bookmark_id/:info_id',function (req,res,next) {
+    Info.findOne({
+        _id:req.params.info_id
+    },function (err,success) {
+        if(err){
+            res.status(400).send({success:false,error:err});
+        }else {
+            next();
+        }
+    })
+});
+
+router.delete('/trip/:bookmark_id/:info_id',function (req,res,next) {
+    Bookmark.findOne({
+        _id:req.params.bookmark_id
+    },function (err,success) {
+        if(err){
+            res.status(400).send({success:false,error:err});
+        }else {
+            next();
+        }
+    })
+});
+
+
+router.delete('/trip/:bookmark_id/:info_id',function (req,res,next) {
+    Bookmark.findOne({
+        _id:req.params.bookmark_id
+    },function (err,success) {
+        if(!success){
+            res.status(400).send({success:false,error:err});
+        }else {
+            var result = success.otherUser.some(function (val) {
+                var t = val != null ?  val :  1;
+                return t.toString() === req.userinfo._id.toString();
+            });
+            if(result){
+                next();
+            }else{
+                res.status(403).send({success:false,message:"権限がありません。"})
+            }
+        }
+    })
+});
+
+router.delete('/trip/:bookmark_id/:info_id',function (req,res,next) {
+    Info.remove({
+        _id:req.params.info_id
+    },function (err,success) {
+        if(!success){
+            res.status(400).send({success:false,error:err});
+        }else {
+            res.json({
+                success:true,
+                info_id:req.params.info_id
+            })
+        }
+    })
+});
+
 router.post('/permission',function (req,res,next) {
     User.find({
         name:req.body.name
     },function (err,success) {
-        if(err){
+        if(!success){
             res.status(403).json({success:false,message:"ユーザーがいません",error:err});
         }else{
             req.user = success[0]._id;
@@ -234,11 +364,14 @@ router.post('/permission',function (req,res,next) {
     })
 });
 
+
+
+
 router.post('/permission',function (req,res,next) {
     Bookmark.findOne({
         _id:req.body._id
     },function (err,success) {
-        if(err){
+        if(!success){
             res.status(403).json({success:false,message:"ブックマークがありません",error:err});
         }else{
             if(req.userinfo._id.toString() === success.user.toString()){
@@ -269,7 +402,7 @@ router.post('/permission/del',function (req,res,next) {
     Bookmark.findOne({
         _id:req.body._id
     },function (err,success) {
-        if(err){
+        if(!success){
             res.status(403).json({success:false,message:"ブックマークがありません",error:err});
         }else{
             if(req.userinfo._id.str === success.user.str){
