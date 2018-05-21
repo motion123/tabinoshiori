@@ -29,6 +29,8 @@
   },
   "devDependencies": {
     "bcrypt": "^2.0.1",
+    "gulp-autoprefixer": "^5.0.0",
+    "gulp-plumber": "^1.2.0",
     "mongoose-type-email": "^1.0.5",
     "mongoose-type-url": "^1.0.2",
     "node-uuid": "^1.4.8"

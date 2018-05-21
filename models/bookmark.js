@@ -34,7 +34,7 @@ var BookmarkSchema = new Schema({
             ref: 'Info'
         }],
         thumbnail: {
-            type: mongoose.SchemaTypes.Url
+            type: mongoose.SchemaTypes.Url,
         },
         favorite: {
             type: Number,
@@ -65,6 +65,21 @@ BookmarkSchema.statics.increment = function(id, done) {
         done(null, data);
     });
 };
+
+BookmarkSchema.statics.addThumbnail = function(id,url, done) {
+    return this.collection.update({
+        _id: mongoose.Types.ObjectId(id),
+    }, {
+        $set: { thumbnail: url }
+    },{
+        new:true,
+    },function(err, data) {
+        done(err, data);
+        console.log(data);
+        console.log(err);
+    });
+};
+
 
 BookmarkSchema.index({created_at: -1});
 BookmarkSchema.index({favorite: -1});

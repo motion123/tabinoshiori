@@ -22,7 +22,11 @@ router.post('/new', function(req, res) {
         }
         if(success){
             var token = jwt.encode(success, config.secret);
-            res.json({success: true, token: 'JWT ' + token});
+            res.json({
+                success: true,
+                token: 'JWT ' + token,
+                user_id: success._id
+            });
         }
     })
 });
@@ -126,58 +130,26 @@ router.get('/memberinfo', passport.authenticate('jwt', { session: false}), funct
 
 
 router.get('/personal/:id', passport.authenticate('jwt', { session: false}), function(req, res,next) {
-    var token = getToken(req.headers);
-    if (token) {
-        var decoded = jwt.decode(token, config.secret);
-        User.findOne({
-            email: decoded.email
-        }, function(err, user) {
-            if (err) throw err;
-
-            if (!user) {
-                return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
-            } else {
-                if(user.user_id == req.params.id){
-                    res.json({
-                        success: true,
-                        user_auth:true,
-                        data: {
-                            _id: user._id,
-                            name: user.name,
-                            img: user.img,
-                        }
-                    });
-                }else {
-                    req.userinfo = user;
-                    next();
-                }
-            }
-        });
-    } else {
-        return res.status(403).send({success: false, msg: 'No token provided.'});
-    }
-});
-
-router.get('/personal/:id', function (req,res) {
     User.findOne({
-        name : req.params.name
-    },function(err,user){
-        if(err)
-            return res.status(403).send({success: false, msg: 'User Not Found'});
-        if(!user) {
-            return res.status(403).send({success: false, msg: 'User Not Found'});
-        }else {
+        _id: req.params.id
+    }, function (err, success) {
+        if (!success) {
+            res.status(404).json({
+                success: false,
+                message: "ユーザーが存在しません",
+                error: err,
+            })
+        } else {
             res.json({
                 success: true,
-                user_auth: false,
                 data: {
-                    _id: user._id,
-                    name: user.name,
-                    img: user.img,
+                    _id: success._id,
+                    name: success.name,
+                    thumbnail: success.thumbnail
                 }
-            });
+            })
         }
-    })
+    });
 });
 
 router.get('/auth', passport.authenticate('jwt', {session: false}) ,function (req,res) {
@@ -198,7 +170,8 @@ router.get('/auth', passport.authenticate('jwt', {session: false}) ,function (re
             } else {
                 return res.json({
                     msg: "auth success",
-                    success: true
+                    success: true,
+                    user_id: user._id
                 })
             }
         })
@@ -230,7 +203,7 @@ router.post('/login', function(req, res) {
                     // if user is found and password is right create a token
                     var token = jwt.encode(user, config.secret);
                     // return the information including token as JSON
-                    res.json({success: true, token: 'JWT ' + token});
+                    res.json({success: true, token: 'JWT ' + token, user_id: user._id});
                 } else {
                     res.send({
                         success: false,

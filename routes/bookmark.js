@@ -15,6 +15,8 @@ var Info = require('../models/Info');
 var Bookmark = require('../models/bookmark');
 var getToken = require('./cont/token');
 var paginate = require('express-paginate');
+var mongoose = require('mongoose');
+
 
 //auth処理
 router.use(passport.authenticate('jwt', { session: false}), function(req, res, next) {
@@ -44,7 +46,6 @@ router.post('/new', function (req,res,next) {
     newBookmark.description = req.body.description;
     newBookmark.user = req.userinfo._id;
     newBookmark.otherUser.push(req.userinfo._id);
-
     newBookmark.save(function (err,success) {
         if(err) {
             res.send({success: false, validError: true,error:err});
@@ -57,6 +58,30 @@ router.post('/new', function (req,res,next) {
         }
     });
 });
+
+
+router.get('/user/:id', function (req,res) {
+    Bookmark.paginate({ otherUser:{ "$in" : [req.params.id]}},{
+                select:'_id title description user favorite comment thumbnail',
+                page: req.query.page,
+                limit: req.query.limit
+            },function (err,success) {
+                if(err){
+                    return res.status(404).send({success:false, msg: 'Bookmark取得失敗'});
+                } else if(!success) {
+                    return res.status(404).send({success: false, msg: 'Bookmark取得失敗'});
+                }else {
+                    res.json({
+                        success: true,
+                        currentPage: success.page,
+                        pageCount: success.pages,
+                        itemCount: success.total,
+                        bookmarkdata: success.docs
+                    });
+                }
+            }
+    )}
+);
 
 
 // 個別栞情報GET
@@ -114,6 +139,7 @@ router.get('/:id', function (req,res) {
     })
 });
 
+
 router.post('/trip/new',function (req,res,next) {
    Bookmark.findOne({
        _id:req.body._id
@@ -134,6 +160,7 @@ router.post('/trip/new',function (req,res,next) {
        }
    })
 });
+
 
 router.post('/trip/new',function (req,res,next) {
     var newSite = new Site();
@@ -162,6 +189,11 @@ router.post('/trip/new',function (req,res,next) {
         if(err) {
             res.status(400).send({success: false, validError: true,error:err});
         } else {
+            Bookmark.update(req.body._id,success.thumbnail,function(err,succse){
+                if(!success){
+                    console.log(err);
+                }
+            });
             req.info = success;
             next();
         }
@@ -169,10 +201,10 @@ router.post('/trip/new',function (req,res,next) {
 });
 
 
-
 router.post('/trip/new',function (req,res,next) {
-    Bookmark.update({_id: req.body._id},{
-        $push:{trip_info:req.info._id }
+    let trip_id = mongoose.Types.ObjectId(req.info._id);
+    Bookmark.updateOne({_id: req.body._id},{
+        $addToSet: {trip_info:trip_id }
     },function (err, success) {
         var options = {
             path:'location',
@@ -228,7 +260,7 @@ router.put('/trip/order',function (req,res,next) {
 });
 
 router.put('/trip/order',function (req,res,next) {
-    Bookmark.update({_id: req.body._id},{
+    Bookmark.updateOne({_id: req.body._id},{
         $set:{trip_info:req.body.trip_info_list }
     },function (err, success) {
         if (!success) {
@@ -270,7 +302,7 @@ router.put('/tripinfo',function (req,res,next) {
         if(!success){
             res.status(400).send({success:false,error:err});
         }else {
-            Info.update({
+            Info.updateOne({
                 _id:req.body.info_id
             },{$set:{
                     description:req.body.description,
@@ -279,14 +311,29 @@ router.put('/tripinfo',function (req,res,next) {
                 if(err){
                     res.status(400).send({success:false,error:err})
                 }else{
-                    res.json({
-                        success:true,
-                        trip_info:{
-                            _id: req.body.info_id,
-                            description:req.body.description,
-                            thumbnail:req.body.thumbnail
-                        }
-                    })
+                    if(req.body.thumbnail) {
+                        Bookmark.addThumbnail(req.body.bookmark_id, req.body.thumbnail.medium, function (err, success) {
+                            if (success) {
+                                res.json({
+                                    success: true,
+                                    trip_info: {
+                                        _id: req.body.info_id,
+                                        description: req.body.description,
+                                        thumbnail: req.body.thumbnail
+                                    }
+                                })
+                            }
+                        });
+                    }else{
+                        res.json({
+                            success: true,
+                            trip_info: {
+                                _id: req.body.info_id,
+                                description: req.body.description,
+                                thumbnail: req.body.thumbnail
+                            }
+                        })
+                    }
 
                 }
             })
@@ -361,7 +408,7 @@ router.put('/permission',function (req,res,next) {
         name:req.body.name
     },function (err,success) {
         if(!success){
-            res.status(403).json({success:false,message:"ユーザーがいません",error:err});
+            res.status(403).json({success:false,message:"存在しないユーザーです",error:err});
         }else{
             req.user = success;
             next();
@@ -380,7 +427,16 @@ router.put('/permission',function (req,res,next) {
             res.status(403).json({success:false,message:"ブックマークがありません",error:err});
         }else{
             if(req.userinfo._id.toString() === success.user.toString()){
-                next();
+                let result = success.otherUser.some(function (val) {
+                    let t = val != null ?  val :  1;
+                    return t.toString() === req.user._id.toString();
+                });
+                if(result){
+                    res.status(403).json({success:false,message:"すでに登録済みのユーザーです",error:err});
+
+                }else {
+                    next();
+                }
             } else{
                 res.status(401).json({success:false,message:"権限がありませんｎ",error:err});
             }
@@ -389,13 +445,16 @@ router.put('/permission',function (req,res,next) {
 });
 
 
-router.put('/permission',function (req,res,next) {
-    Bookmark.update({
+
+
+
+router.put('/permission',function (req,res) {
+    Bookmark.updateOne({
         _id:req.body.bookmark_id
-    },{ $push:{otherUser: req.user._id}},function (err,success) {
+    },{ "$push": {otherUser: req.user._id}},function(err,success) {
         if(err){
             res.status(403).json({success:false,message:"権限付与に失敗しました。",error:err});
-        }else{
+        }else if(success){
             res.json({
                 success:true,
                 other_user: {
@@ -407,6 +466,8 @@ router.put('/permission',function (req,res,next) {
     })
 });
 
+
+
 router.delete('/permission/:bookmark_id/:user_id',function (req,res,next) {
     Bookmark.findOne({
         _id:req.params.bookmark_id
@@ -414,8 +475,12 @@ router.delete('/permission/:bookmark_id/:user_id',function (req,res,next) {
         if(!success){
             res.status(403).json({success:false,message:"ブックマークがありません",error:err});
         }else{
-            if(req.userinfo._id.str === success.user.str){
-                next();
+            if(req.userinfo._id.toString() === success.user.toString()){
+                if(req.params.user_id.toString() === success.user.toString()){
+                    res.status(401).json({success:false,message:"管理者の権限は消せません",error:err});
+                }else {
+                    next();
+                }
             } else{
                 res.status(401).json({success:false,message:"権限がありませんｎ",error:err});
             }
@@ -423,7 +488,7 @@ router.delete('/permission/:bookmark_id/:user_id',function (req,res,next) {
     })
 });
 
-router.post('/permission/:bookmark_id/:user_id',function (req,res) {
+router.delete('/permission/:bookmark_id/:user_id',function (req,res) {
    Bookmark.update({
        _id:req.params.bookmark_id
    },{$pull:{otherUser: req.params.user_id}},
@@ -432,7 +497,8 @@ router.post('/permission/:bookmark_id/:user_id',function (req,res) {
            res.status(403).json({success:false,message:"削除に失敗しました。",error:err});
        } else{
            res.json({
-               success:true
+               success:true,
+               otherUser: req.params.user_id,
            })
        }
    })
@@ -471,7 +537,6 @@ router.delete('/:id',function(req,res) {
                 title: req.bookmarkinfo.title
             }
         });
-
     })
 });
 

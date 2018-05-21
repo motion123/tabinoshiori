@@ -33,6 +33,9 @@ var UserSchema = new Schema({
         },
         bookmark: {
             type:Schema.Types.ObjectId, ref: 'Bookmark'
+        },
+        thumbnail: {
+            type: mongoose.SchemaTypes.Url
         }
     },
     {

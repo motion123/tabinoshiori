@@ -16,6 +16,8 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var bookmarkRouter = require('./routes/bookmark');
 var siteRouter = require('./routes/site');
+var followRouter = require('./routes/follow');
+var goodRouter = require('./routes/good');
 
 var passport = require('passport');
 
@@ -63,6 +65,8 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/bookmark', bookmarkRouter);
 app.use('/site', siteRouter);
+app.use('/follow', followRouter);
+app.use('/good', goodRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
